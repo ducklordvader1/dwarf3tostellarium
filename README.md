@@ -1,4 +1,4 @@
-# dwarf3tostellarium
+# dwarf3toStellarium
 A simple python bridge server allowing to bridge and remote control Dwarf3 smart telescopes with Stellarium.
 I created dwarf3tostellarium because due to changes in the latest dwarf3 firmware, the great dwarfium software doesn't work anymore.
 
