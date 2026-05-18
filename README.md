@@ -2,15 +2,19 @@
 A simple python bridge server allowing to bridge and remote control Dwarf3 smart telescopes with Stellarium.
 I created dwarf3tostellarium because due to changes in the latest dwarf3 firmware, the great dwarfium software doesn't work anymore.
 
-Disclaimer: The server is entirely vibe-coded, therefore use with care ^^
+Disclaimer: The server is entirely vibe-coded, therefore use with care ^^. Also I do not recommend to run this server on public networks or the internet as it doesn't have any security built in. Run it on a private WiFi.
 
 ---
 
 Server must be on the same WiFi network as the dwarf 3. Usage of server is simple:
 
+First install the three needed dependencies with pip:
+pip install flask requests websocket-client
+
+Then the server can be started with
 python3 server.py IP-ADDESS-DWARF --lat YOUR_LAT --lon YOUR_LON --alt YOUR_ALT
 
-Setting the lattitude/longitude is necessary for dwarf3 as this is normally done via app.
+Setting the lattitude/longitude is necessary for dwarf3 as this is normally done via app. You can find the lattitude/longitude of your location e.g. via Google Maps.
 For example, if the dwarf3 is on its standard IP 192.168.88.1 and you're in Berlin:
 
 python3 server.py 192.168.88.1 --lat 52.5200 --lon 13.4050 --alt 34
