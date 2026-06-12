@@ -50,13 +50,15 @@ Stellarium telescope protocol (all little-endian)
 import argparse
 import logging
 import math
+import os
+import secrets
 import socket
 import struct
 import sys
 import threading
 import time
 
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, Response, jsonify, request
 
 from dwarflab_controller import DwarfLab
 
@@ -69,15 +71,18 @@ log = logging.getLogger("dwarf32stellarium")
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
 # ── runtime config (populated in main()) ──────────────────────────────────────
 cfg = {
-    "dwarf_ip":  "192.168.88.1",
-    "tcp_port":  10001,
-    "http_port": 5002,
-    "lat":       None,   # observer latitude  (degrees, None = don't send)
-    "lon":       None,   # observer longitude (degrees, None = don't send)
-    "alt":       0.0,    # observer altitude  (metres)
+    "dwarf_ip":   "192.168.88.1",
+    "tcp_port":   10001,
+    "tcp_host":   "127.0.0.1",  # Stellarium runs on the same host
+    "http_port":  5002,
+    "http_host":  "127.0.0.1",
+    "lat":        None,   # observer latitude  (degrees, None = don't send)
+    "lon":        None,   # observer longitude (degrees, None = don't send)
+    "alt":        0.0,    # observer altitude  (metres)
 }
 
 # ── DwarfLab instance (set in _connect_telescope()) ───────────────────────────
@@ -291,12 +296,13 @@ def _handle_stellarium_client(conn: socket.socket, addr):
 
 
 def _run_tcp_server():
+    host = cfg["tcp_host"]
     port = cfg["tcp_port"]
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(("0.0.0.0", port))
+    srv.bind((host, port))
     srv.listen(5)
-    log.info("Stellarium TCP server listening on port %d", port)
+    log.info("Stellarium TCP server listening on %s:%d", host, port)
     while True:
         try:
             conn, addr = srv.accept()
@@ -316,7 +322,7 @@ def _run_tcp_server():
 
 @app.route("/")
 def index():
-    return render_template_string(_HTML_UI)
+    return Response(_HTML_UI, mimetype="text/html")
 
 
 @app.route("/api/status")
@@ -585,6 +591,16 @@ def main():
         help="HTTP port for this Flask status dashboard",
     )
     parser.add_argument(
+        "--bind", default="127.0.0.1",
+        metavar="HOST",
+        help="Host/IP for the Flask dashboard (default: 127.0.0.1; use 0.0.0.0 for LAN access)",
+    )
+    parser.add_argument(
+        "--tcp-bind", default="127.0.0.1",
+        metavar="HOST",
+        help="Host/IP for the Stellarium TCP server (default: 127.0.0.1)",
+    )
+    parser.add_argument(
         "--lat", type=float, default=None,
         metavar="DEG",
         help="Observer latitude in decimal degrees (e.g. 48.8566)",
@@ -603,7 +619,9 @@ def main():
 
     cfg["dwarf_ip"]  = args.dwarf_ip
     cfg["tcp_port"]  = args.tcp_port
+    cfg["tcp_host"]  = args.tcp_bind
     cfg["http_port"] = args.port
+    cfg["http_host"] = args.bind
     cfg["lat"]       = args.lat
     cfg["lon"]       = args.lon
     cfg["alt"]       = args.alt
@@ -621,7 +639,7 @@ def main():
     threading.Thread(target=_run_tcp_server,    daemon=True, name="stell-tcp").start()
 
     # Run Flask (use_reloader=False keeps background threads alive)
-    app.run(host="0.0.0.0", port=cfg["http_port"], threaded=True, use_reloader=False)
+    app.run(host=cfg["http_host"], port=cfg["http_port"], threaded=True, use_reloader=False)
 
 
 if __name__ == "__main__":
